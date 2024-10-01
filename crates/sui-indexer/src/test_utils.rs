@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use sui_json_rpc_types::SuiTransactionBlockResponse;
 
-use crate::config::{IngestionConfig, PruningOptions, SnapshotLagConfig, UploadOptions};
+use crate::config::{IngestionConfig, RetentionPolicies, SnapshotLagConfig, UploadOptions};
 use crate::database::Connection;
 use crate::database::ConnectionPool;
 use crate::db::ConnectionPoolConfig;
@@ -72,7 +72,7 @@ pub async fn start_indexer_jsonrpc_for_testing(
 pub async fn start_indexer_writer_for_testing(
     db_url: String,
     snapshot_config: Option<SnapshotLagConfig>,
-    pruning_options: Option<PruningOptions>,
+    retention_policies: Option<RetentionPolicies>,
     data_ingestion_path: Option<PathBuf>,
     cancel: Option<CancellationToken>,
 ) -> (
@@ -128,7 +128,7 @@ pub async fn start_indexer_writer_for_testing(
                 store_clone,
                 indexer_metrics,
                 snapshot_config,
-                pruning_options,
+                retention_policies,
                 token_clone,
             )
             .await

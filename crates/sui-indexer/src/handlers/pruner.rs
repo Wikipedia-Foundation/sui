@@ -1,40 +1,97 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
-use std::time::Duration;
-use tokio_util::sync::CancellationToken;
-use tracing::{error, info};
-
+use crate::config::RetentionPolicies;
 use crate::errors::IndexerError;
 use crate::store::pg_partition_manager::PgPartitionManager;
 use crate::store::PgIndexerStore;
 use crate::{metrics::IndexerMetrics, store::IndexerStore, types::IndexerResult};
-
-/// The primary purpose of objects_history is to serve consistency query.
-/// A short retention is sufficient.
-const OBJECTS_HISTORY_EPOCHS_TO_KEEP: u64 = 2;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::time::Duration;
+use strum_macros;
+use tokio_util::sync::CancellationToken;
+use tracing::{error, info};
 
 pub struct Pruner {
     pub store: PgIndexerStore,
     pub partition_manager: PgPartitionManager,
-    pub epochs_to_keep: u64,
+    pub retention_policies: RetentionPolicies,
     pub metrics: IndexerMetrics,
 }
 
+/// Enum representing tables that the pruner is allowed to prune. The pruner will ignore any table
+/// that is not listed here.
+#[derive(
+    Debug,
+    Eq,
+    PartialEq,
+    strum_macros::Display,
+    strum_macros::EnumString,
+    strum_macros::EnumIter,
+    strum_macros::AsRefStr,
+    Hash,
+    Serialize,
+    Deserialize,
+    Clone,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum PrunableTable {
+    ObjectsHistory,
+    Transactions,
+    Events,
+
+    EventEmitPackage,
+    EventEmitModule,
+    EventSenders,
+    EventStructInstantiation,
+    EventStructModule,
+    EventStructName,
+    EventStructPackage,
+
+    TxAffectedAddresses,
+    TxAffectedObjects,
+    TxCallsPkg,
+    TxCallsMod,
+    TxCallsFun,
+    TxChangedObjects,
+    TxDigests,
+    TxInputObjects,
+    TxKinds,
+    TxRecipients,
+    TxSenders,
+
+    Checkpoints,
+    PrunerCpWatermark,
+}
+
 impl Pruner {
+    /// Instantiates a pruner with default retention and overrides. Pruner will finalize the
+    /// retention policies so there is a value for every prunable table.
     pub fn new(
         store: PgIndexerStore,
-        epochs_to_keep: u64,
+        retention_policies: RetentionPolicies,
         metrics: IndexerMetrics,
     ) -> Result<Self, IndexerError> {
         let partition_manager = PgPartitionManager::new(store.pool())?;
+
         Ok(Self {
             store,
             partition_manager,
-            epochs_to_keep,
+            retention_policies: retention_policies.finalize(),
             metrics,
         })
+    }
+
+    /// Given a table name, return the number of epochs to keep for that table. Return `None` if the
+    /// table is not prunable.
+    fn epochs_to_keep(&self, table_name: &str) -> Option<u64> {
+        if let Ok(variant) = table_name.parse::<PrunableTable>() {
+            self.retention_policies.get(&variant)
+        } else {
+            None
+        }
     }
 
     pub async fn start(&self, cancel: CancellationToken) -> IndexerResult<()> {
@@ -63,35 +120,38 @@ impl Pruner {
                 .collect();
 
             for (table_name, (min_partition, max_partition)) in &table_partitions {
-                if last_seen_max_epoch != *max_partition {
-                    error!(
-                        "Epochs are out of sync for table {}: max_epoch={}, max_partition={}",
-                        table_name, last_seen_max_epoch, max_partition
-                    );
-                }
-
-                let epochs_to_keep = if table_name == "objects_history" {
-                    OBJECTS_HISTORY_EPOCHS_TO_KEEP
-                } else {
-                    self.epochs_to_keep
-                };
-                for epoch in *min_partition..last_seen_max_epoch.saturating_sub(epochs_to_keep - 1)
-                {
-                    if cancel.is_cancelled() {
-                        info!("Pruner task cancelled.");
-                        return Ok(());
+                if let Some(epochs_to_keep) = self.epochs_to_keep(table_name) {
+                    if last_seen_max_epoch != *max_partition {
+                        error!(
+                            "Epochs are out of sync for table {}: max_epoch={}, max_partition={}",
+                            table_name, last_seen_max_epoch, max_partition
+                        );
                     }
-                    self.partition_manager
-                        .drop_table_partition(table_name.clone(), epoch)
-                        .await?;
-                    info!(
-                        "Batch dropped table partition {} epoch {}",
-                        table_name, epoch
-                    );
+
+                    for epoch in
+                        *min_partition..last_seen_max_epoch.saturating_sub(epochs_to_keep - 1)
+                    {
+                        if cancel.is_cancelled() {
+                            info!("Pruner task cancelled.");
+                            return Ok(());
+                        }
+                        self.partition_manager
+                            .drop_table_partition(table_name.clone(), epoch)
+                            .await?;
+                        info!(
+                            "Batch dropped table partition {} epoch {}",
+                            table_name, epoch
+                        );
+                    }
                 }
             }
 
-            let prune_to_epoch = last_seen_max_epoch.saturating_sub(self.epochs_to_keep - 1);
+            // TODO: (wlmyng) Once we have the watermarks table, we can iterate through each row
+            // returned from `watermarks`, look it up against `retention_policies`, and process them
+            // independently. This also means that pruning overrides will only apply for
+            // epoch-partitioned tables right now.
+            let prune_to_epoch =
+                last_seen_max_epoch.saturating_sub(self.retention_policies.epochs_to_keep - 1);
             let prune_start_epoch = next_prune_epoch.unwrap_or(min_epoch);
             for epoch in prune_start_epoch..prune_to_epoch {
                 if cancel.is_cancelled() {
