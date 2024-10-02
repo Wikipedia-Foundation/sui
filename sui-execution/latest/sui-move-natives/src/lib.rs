@@ -68,6 +68,7 @@ mod config;
 mod crypto;
 mod dynamic_field;
 mod event;
+pub mod native_tx_context;
 mod object;
 pub mod object_runtime;
 mod random;
@@ -986,6 +987,31 @@ pub fn all_natives(silent: bool, protocol_config: &ProtocolConfig) -> NativeFunc
             "tx_context",
             "derive_id",
             make_native!(tx_context::derive_id),
+        ),
+        (
+            "tx_context",
+            "native_sender",
+            make_native!(tx_context::native_sender),
+        ),
+        (
+            "tx_context",
+            "native_digest",
+            make_native!(tx_context::native_digest),
+        ),
+        (
+            "tx_context",
+            "native_epoch",
+            make_native!(tx_context::native_epoch),
+        ),
+        (
+            "tx_context",
+            "native_epoch_timestamp_ms",
+            make_native!(tx_context::native_epoch_timestamp_ms),
+        ),
+        (
+            "tx_context",
+            "native_sponsor",
+            make_native!(tx_context::native_sponsor),
         ),
         (
             "types",

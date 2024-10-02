@@ -54,3 +54,73 @@ pub fn derive_id(
         smallvec![Value::address(address)],
     ))
 }
+
+/***************************************************************************************************
+ * native fun native_sender(): address;
+ **************************************************************************************************/
+pub fn native_sender(
+    context: &mut NativeContext,
+    _ty_args: Vec<Type>,
+    _args: VecDeque<Value>,
+) -> PartialVMResult<NativeResult> {
+    Ok(NativeResult::ok(
+        context.gas_used(),
+        smallvec![Value::address(AccountAddress::ZERO)],
+    ))
+}
+
+/***************************************************************************************************
+ * native fun native_digest(): &vector<u8>;
+ **************************************************************************************************/
+pub fn native_digest(
+    context: &mut NativeContext,
+    _ty_args: Vec<Type>,
+    _args: VecDeque<Value>,
+) -> PartialVMResult<NativeResult> {
+    Ok(NativeResult::ok(
+        context.gas_used(),
+        smallvec![Value::address(AccountAddress::ZERO)],
+    ))
+}
+
+/***************************************************************************************************
+ * native fun native_epoch(): u64;
+ **************************************************************************************************/
+pub fn native_epoch(
+    context: &mut NativeContext,
+    _ty_args: Vec<Type>,
+    _args: VecDeque<Value>,
+) -> PartialVMResult<NativeResult> {
+    Ok(NativeResult::ok(
+        context.gas_used(),
+        smallvec![Value::u64(0)],
+    ))
+}
+
+/***************************************************************************************************
+ * native fun native_epoch_timestamp_ms(): u64;
+ **************************************************************************************************/
+pub fn native_epoch_timestamp_ms(
+    context: &mut NativeContext,
+    _ty_args: Vec<Type>,
+    _args: VecDeque<Value>,
+) -> PartialVMResult<NativeResult> {
+    Ok(NativeResult::ok(
+        context.gas_used(),
+        smallvec![Value::u64(0)],
+    ))
+}
+
+/***************************************************************************************************
+ * native fun sponsor(): address;
+ **************************************************************************************************/
+pub fn native_sponsor(
+    context: &mut NativeContext,
+    _ty_args: Vec<Type>,
+    _args: VecDeque<Value>,
+) -> PartialVMResult<NativeResult> {
+    Ok(NativeResult::ok(
+        context.gas_used(),
+        smallvec![Value::address(AccountAddress::ZERO)],
+    ))
+}

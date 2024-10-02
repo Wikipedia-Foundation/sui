@@ -971,6 +971,10 @@ impl TxContext {
         self.epoch
     }
 
+    pub fn epoch_timestamp_ms(&self) -> CheckpointTimestamp {
+        self.epoch_timestamp_ms
+    }
+
     /// Derive a globally unique object ID by hashing self.digest | self.ids_created
     pub fn fresh_id(&mut self) -> ObjectID {
         let id = ObjectID::derive_id(self.digest(), self.ids_created);

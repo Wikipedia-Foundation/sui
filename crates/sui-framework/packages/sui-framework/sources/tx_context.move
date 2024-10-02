@@ -74,6 +74,21 @@ fun ids_created(self: &TxContext): u64 {
 /// Native function for deriving an ID via hash(tx_hash || ids_created)
 native fun derive_id(tx_hash: vector<u8>, ids_created: u64): address;
 
+#[allow(unused_function)]
+native fun native_sender(): address;
+
+#[allow(unused_function)]
+native fun native_digest(): &vector<u8>;
+
+#[allow(unused_function)]
+native fun native_epoch(): u64;
+
+#[allow(unused_function)]
+native fun native_epoch_timestamp_ms(): u64;
+
+#[allow(unused_function)]
+native fun native_sponsor(): address;
+
 // ==== test-only functions ====
 
 #[test_only]
