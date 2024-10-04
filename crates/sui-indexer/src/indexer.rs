@@ -19,7 +19,7 @@ use sui_data_ingestion_core::{
 use sui_types::messages_checkpoint::CheckpointSequenceNumber;
 
 use crate::build_json_rpc_server;
-use crate::config::{IngestionConfig, JsonRpcConfig, RetentionPolicies, SnapshotLagConfig};
+use crate::config::{IngestionConfig, JsonRpcConfig, RetentionConfig, SnapshotLagConfig};
 use crate::database::ConnectionPool;
 use crate::errors::IndexerError;
 use crate::handlers::checkpoint_handler::new_handlers;
@@ -37,7 +37,7 @@ impl Indexer {
         store: PgIndexerStore,
         metrics: IndexerMetrics,
         snapshot_config: SnapshotLagConfig,
-        retention_policies: Option<RetentionPolicies>,
+        retention_config: Option<RetentionConfig>,
         cancel: CancellationToken,
     ) -> Result<(), IndexerError> {
         info!(
@@ -69,8 +69,8 @@ impl Indexer {
         )
         .await?;
 
-        if let Some(retention_policies) = retention_policies {
-            let pruner = Pruner::new(store.clone(), retention_policies, metrics.clone())?;
+        if let Some(retention_config) = retention_config {
+            let pruner = Pruner::new(store.clone(), retention_config, metrics.clone())?;
             let cancel_clone = cancel.clone();
             spawn_monitored_task!(pruner.start(cancel_clone));
         }

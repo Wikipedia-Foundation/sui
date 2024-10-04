@@ -47,8 +47,8 @@ async fn main() -> anyhow::Result<()> {
         } => {
             // Make sure to run all migrations on startup, and also serve as a compatibility check.
             run_migrations(pool.dedicated_connection().await?).await?;
-            let retention_policies = pruning_options.load_from_file();
-            if retention_policies.is_some() {
+            let retention_config = pruning_options.load_from_file();
+            if retention_config.is_some() {
                 check_prunable_tables_valid(&mut pool.get().await?).await?;
             }
 
@@ -59,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
                 store,
                 indexer_metrics,
                 snapshot_config,
-                retention_policies,
+                retention_config,
                 CancellationToken::new(),
             )
             .await?;
